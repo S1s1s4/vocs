@@ -1,0 +1,190 @@
+#include "mymodbus.h"
+#include "uart.h"
+
+#include "mytime.h"
+
+extern float g_user_voc;
+extern float g_user_temp;
+extern float g_user_hum;
+
+    static float wd[21];
+    static uint8_t cnt=0;
+//static uint8_t flags[6];  //取数据 成功与次数标志
+/**
+ * @description: 
+ * @param {type} 
+ * @return: 
+ */
+void date_query(uint8_t num)
+{
+    //char sendbuf[8] = {0x11, 0x03, 0x00, 0x02, 0x00, 0x04, 0x5A, 0xA5};
+ char sendbuf[9] = {0xff, 0x01, /*0x78*/0x87, /*0x40*/0x00, 0x00,0x00,0x00,0x00,0x78};
+   // sendbuf[0] = 0x11 + num;
+    USART3SendString(sendbuf, 9);
+}
+
+
+uint8_t Cal_Checksum_u8(uint8_t *buf, uint16_t size)
+{
+  uint16_t cksum = 0;
+  uint8_t *p = buf+1;
+  uint16_t i = size;
+  for (; i > 0; i--)
+  {
+    cksum += *p++;
+  }
+  cksum = cksum&0x00FF;
+  return (~cksum)+1;
+}
+/**
+ * @description: 
+ * @param {type} buf ???????? result?????? type ????
+ * @return: 
+ */
+void date_preocess(unsigned char *buf, u8 offset)
+{
+
+  wd[cnt] = (float)((buf[offset + 6] << 8) | buf[offset + 7]);
+    g_user_temp=(float)((buf[offset + 8] << 8) | buf[offset + 9])/100.0f;
+    g_user_hum=(float)((buf[offset + 10] << 8) | buf[offset + 11])/100.0f;
+        // reading_flag=0;
+         wd[cnt]*=0.05f;
+
+        	//if(reday)
+		 g_user_voc=g_user_voc+wd[cnt]-wd[20]	; //减少计算量
+		_time_1s=0;
+        __time_20ms=0;
+		 if(cnt+1>=20)
+		 {
+			 wd[20]=wd[0];  //即将删去的点
+		 }
+		 else
+			 wd[20]=wd[cnt+1];
+         if(cnt<19)
+         cnt++;
+         else
+         {
+        	 cnt=0;
+        	// reday=true;
+         }
+
+}
+
+void DataHand(void)
+{
+	
+	u8 moveIndex=0;
+    u8 len=13;
+     uint8_t cksum = 0;
+	if(bsp_Usart3_Rec_New())
+	{
+		while((Msg3RxCount>=9)&&(moveIndex<=(Msg3RxCount-9))) 
+        {
+           // len = g_u2cRcregBuf[moveIndex+1];
+
+            if( Msg3RxBuf[moveIndex]!=0xff)  //
+            {
+                moveIndex++;
+                continue ;
+            }	
+                    cksum = Cal_Checksum_u8(Msg3RxBuf + moveIndex, 11);
+					if(cksum == Msg3RxBuf[moveIndex + 12])//判断校验码
+					{	
+						date_preocess(Msg3RxBuf,moveIndex);
+                        
+						moveIndex=moveIndex+len;	
+					}	
+					else 
+					{
+
+					    moveIndex++; //因为是判断数据头，游标向着数组最尾端的方向移动
+                    } 							  
+           }							
+           Msg3RxCount=0;  //清空缓冲的下标，方便下次重新从0下标开始接
+	}
+}
+
+
+
+void GetData(void)
+{
+    date_query(0);
+
+    delay_ms(300);
+    DataHand();  //如有成功解析 直接置为1	
+ //   static float outbuf[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    //memset(outbuf, 0, sizeof(outbuf));
+
+//    *ec &= 0xFF00;
+
+//    //memset(flags, 0, sizeof(flags));
+//  
+//    for ( t = 0; t < 18; t++)
+//    {
+//        flags[t % 6] = 1;
+//    }
+
+//    for ( q = 0; q < 30; q++)
+//    {
+
+//        //第一轮查询
+//        if (flags[q % 6] != 0 && q < 6)
+//        {
+
+//            date_query(q % 6);
+//            
+//            __time_20ms=0;
+//            _time_1s=0;
+//            while(_time_1s<2); //等待2S到
+//            flags[q % 6]++;  //查一次就计数
+//            if (flags[q % 6] > 3)
+//            {
+//                *ec |= 0x0002 << (q%6); //
+//                flags[q % 6] = 0;
+//            } 
+//            __time_20ms=0;
+//            _time_1s=0;
+//            while(_time_1s<2); //等待2S到
+//            DataHand(cResult, outbuf, q % 6);  //如有成功解析 直接置为1			
+//        }
+//        else if (q > 6 && flags[q % 6] > 1) //第一次没有回应的 有回应的都已经置1
+//        {
+//             date_query(q % 6);
+//            __time_20ms=0;
+//            _time_1s=0;
+//            while(_time_1s<2); //等待0.5S到
+//               
+//            flags[q % 6]++;  //查一次就计数
+//            if (flags[q % 6] > 3)
+//            {
+//                *ec |= 0x0002 << (q%6); //
+//                flags[q % 6] = 0;
+//            } 
+//            __time_20ms=0;
+//            _time_1s=0;
+//            while(_time_1s<2); //等待0.5S到
+//            DataHand(cResult, outbuf, q % 6);  //如有成功解析 直接置为1		
+
+//        }
+//        else
+//        {
+//     
+//            *ec |= 0x0002 << (q%6); //???
+
+//        }
+//    }
+//    /*
+//            ################################################
+//            | at | ah | pm10 | pm2.5 | co | no2 | o3 | so2 |
+//            | 0  |  1 |  2   |   3   | 4  |  5  |  6 |  7  |
+//            ################################################
+//        */
+//    *at = outbuf[0];
+//    *ah = outbuf[1];
+//    *pm10 = outbuf[2];
+//    *pm2_5 = outbuf[3];
+//    *co = outbuf[4];
+//    *no2 = outbuf[5];
+//    *o3 = outbuf[6];
+//    *so2 = outbuf[7];
+}

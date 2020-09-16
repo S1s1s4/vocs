@@ -1,0 +1,28 @@
+--cpu=Cortex-M4.fp.sp
+".\objects\startup_stm32f40_41xxx.o"
+".\objects\main.o"
+".\objects\stm32f4xx_it.o"
+".\objects\init.o"
+".\objects\time.o"
+".\objects\uart.o"
+".\objects\misc.o"
+".\objects\stm32f4xx_fsmc.o"
+".\objects\stm32f4xx_gpio.o"
+".\objects\stm32f4xx_rcc.o"
+".\objects\stm32f4xx_tim.o"
+".\objects\stm32f4xx_usart.o"
+".\objects\stm32f4xx_flash.o"
+".\objects\stm32f4xx_iwdg.o"
+".\objects\system_stm32f4xx.o"
+".\objects\bsp_uart.o"
+".\objects\ec20.o"
+".\objects\gprs_dev.o"
+".\objects\mqtt_ec.o"
+".\objects\stmflash.o"
+".\objects\sys.o"
+".\objects\mymodbus.o"
+".\objects\iwdg.o"
+--library_type=microlib --strict --scatter ".\Objects\JEC_AQMV-F4E_V100.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\JEC_AQMV-F4E_V100.map" -o .\Objects\JEC_AQMV-F4E_V100.axf

@@ -1,0 +1,741 @@
+#include "ec20.h"
+#include "mytime.h"
+#include "uart.h"
+#include "gprs_dev.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "stmflash.h"
+extern  unsigned short int NRB_flag;
+
+int FindString(char * pSrc, int srcSize, char * pDest, int dstSize)
+{
+    int iFind = -1;
+    int j=0,i=0;
+    int iCnt = 0;
+    for( i=0; i<srcSize; i++)
+    {
+        iCnt=0;
+        for ( j=0; j<dstSize; j++)
+        {
+            if(pDest[j] == pSrc[i+j])
+                iCnt++;
+        }
+        if (iCnt==dstSize) {
+            iFind = i;
+            break;
+        }
+    }
+    return iFind;
+}
+
+void AT_START()
+{
+    int i;
+    i=sprintf((char*)Msg2TxBuf,"AT\r\n");
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+    i=sprintf((char*)Msg2TxBuf,"ATE0\r\n");
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+
+//    i=sprintf((char*)Msg2TxBuf,"AT+IPR?\r\n");
+//    USART2SendString(Msg2TxBuf,i);
+//    delay_ms(100);
+
+    i=sprintf((char*)Msg2TxBuf,"ATV1\r\n");
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+
+    i=sprintf((char*)Msg2TxBuf, "AT+CTZU=1\r\n");
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+}
+
+/***********************************************************************/
+void  AT_CGSN(char* sn)
+{
+    int i, j;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+CGSN\r\n");         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(3000);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[29]=='O'&&Msg2RxBuf[30]=='K')//10  24
+    {
+        // if(Msg2RxBuf[8]==',')
+        //   flag = Msg2RxBuf[7]-0x30;
+        // else
+        //	 flag = (Msg2RxBuf[7]-0x30)*10+(Msg2RxBuf[8]-0x30);
+        for(j=0; j<15; j++)
+            sn[j] = Msg2RxBuf[10+j];
+        //flag = flag*10+(Msg2RxBuf[8+j]-0x30);
+    }
+    //  return flag;
+}
+
+
+
+
+int AT_CSQ(void)
+{
+    int i, j,flag=99;
+    i=sprintf((char*)Msg2TxBuf,"AT+CSQ\r\n");         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(2000);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    i=FindString((char*)Msg2RxBuf,Msg2RxCount,"CSQ: ",5);
+//	  if(Msg2RxBuf[Msg2RxLen-5]=='O'&&Msg2RxBuf[Msg2RxLen-4]=='K')
+//		{
+    if(Msg2RxBuf[i+7]==',')
+        flag = (Msg2RxBuf[i+5]-0x30)*10+(Msg2RxBuf[i+6]-0x30);
+    else
+        flag = Msg2RxBuf[i+5]-0x30;
+
+//		}
+    return flag;
+}
+
+
+
+/***********************************************************************/
+void  AT_CIMI(void)
+{
+    int i, j;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+CIMI\r\n");         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(2000);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[29]=='O'&&Msg2RxBuf[30]=='K')
+    {
+        // if(Msg2RxBuf[8]==',')
+        //   flag = Msg2RxBuf[7]-0x30;
+        // else
+        //	 flag = (Msg2RxBuf[7]-0x30)*10+(Msg2RxBuf[8]-0x30);
+        //	 for(j=0;j<15;j++)
+        //  flag[j] = Msg2RxBuf[8+j];
+        //flag = flag*10+(Msg2RxBuf[8+j]-0x30);
+    }
+    //  return flag;
+}
+
+/***********************************************************************/
+void  AT_QICSGP(void)
+{
+    int i, j;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+QICSGP=1\r\n");
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(2000);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[44]=='O'&&Msg2RxBuf[45]=='K')
+    {
+
+    }
+}
+
+/***********************************************************************/
+void  AT_QIACT(void)
+{
+    int i, j;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+QIACT=1\r\n");         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(2000);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[13]=='O'&&Msg2RxBuf[14]=='K')
+    {
+
+    }
+
+}
+
+/***********************************************************************/
+void  AT_QIOPEN(int port,char* ip)
+{
+    int i, j;
+
+    static char cnt=0;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+QIOPEN=1,0,\"TCP\",\"%s\",%d,0,1\r\n",ip,port);         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(2000);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[48]=='O'&&Msg2RxBuf[49]=='K')
+    {
+
+        cnt=0;
+        return ;
+
+    }
+    cnt++;
+    if(cnt>5)
+    {
+        NRB_flag=1;
+        cnt=0;
+    }
+
+    //  return flag;
+
+}
+
+void AT_QICLOSE(void)
+{
+    int i, j;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+QICLOSE=0,1\r\n");         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[27]=='O'&&Msg2RxBuf[28]=='K')
+    {
+
+    }
+}
+/***********************************************************************/
+void  AT_CLOSE(void)
+{
+    int i, j;
+// long long flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+QICLOSE=0,1\r\n");         //AT+CSQ   强度
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[27]=='O'&&Msg2RxBuf[28]=='K')
+    {
+
+    }
+
+
+    i=sprintf((char*)Msg2TxBuf,"AT+QIDEACT=1\r\n");         //AT+CSQ
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(100);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    if(Msg2RxBuf[27]=='O'&&Msg2RxBuf[28]=='K')
+    {
+
+    }
+}
+
+void NB_senddate(unsigned char* mqtt_date,int mqtt_dateLen,int socket_n)
+{
+    int i,j;
+    char cTemp[120];
+//		for (i = 0; i < mqtt_dateLen; i++)           //mqtt数据转换成HEX数据
+//  {
+//      sprintf(HEX_send_date + 2*i, "%02X ", (unsigned char)*(mqtt_date+i));
+//  }
+    //HEX_send_date[2*i] = '\0';
+
+    //i=sprintf((char*)mqtt_date, "AT+QISEND=%d,%d,%s\r\n", socket_n,mqtt_dateLen,mqtt_date);      //AT+NSOSD=0,2,6162     //send date
+    i=sprintf(cTemp, "AT+QISEND=0,%d\r\n", mqtt_dateLen);
+    USART2SendString((unsigned char*)cTemp,i);
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(mqtt_date,i);
+    delay_ms(5000);    //等待服务器数据返回
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+}
+//需要调整
+int AT_CEREG(void)
+{
+    int i,j,flag=0;
+    i=sprintf((char*)Msg2TxBuf,"AT+CEREG?\r\n");         //AT+CEREG?  驻网状态确认
+    Msg2RxCount = 0;
+    for (j = 0; j < 30; j++)
+        Msg2RxBuf[j] = 0;
+    USART2SendString(Msg2TxBuf,i);
+    delay_ms(300);
+    Msg2RxLen = Msg2RxCount+1;
+    USART1SendString(Msg2RxBuf,Msg2RxLen);
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	if(Msg2RxBuf[22]=='1')
+		flag=1;
+    return flag;
+}
+
+//
+unsigned char model_gettime(unsigned char isGeted)
+{
+    int i=0;
+    unsigned char r=0;
+    while(1!=AT_CEREG())
+    {
+        if(r>5)
+        {
+            USART1SendString((unsigned char*)"#restart gprs\r\n",15);
+            gprs_dev_restart();
+            if(isGeted==0)
+                r=0;
+            else
+                return 1;  //failed
+        }
+
+        r++;
+        delay_ms(800);
+        //return 0;
+    }
+    i = sprintf((char *)Msg2TxBuf, "AT+CCLK?\r\n"); //获取网络时间
+    Msg2RxCount = 0;
+    for (i = 0; i < 30; i++)
+        Msg2RxBuf[i] = 0;
+    USART2SendString(Msg2TxBuf, i);
+    delay_ms(1200);
+    Msg2RxLen = Msg2RxCount + 1;
+    if (Msg2RxBuf[44] == 'O' && Msg2RxBuf[45] == 'K' && Msg2RxBuf[2] == '+')
+    {
+        year=((Msg2RxBuf[19] - '0') * 10 + (Msg2RxBuf[20] - '0') ) ;
+        mon=((Msg2RxBuf[22] - '0') * 10 + (Msg2RxBuf[23] - '0') ) % 12;
+        day=((Msg2RxBuf[25] - '0') * 10 + (Msg2RxBuf[26] - '0') ) ;
+        hour = ((Msg2RxBuf[28] - '0') * 10 + (Msg2RxBuf[29] - '0') ) % 24;
+        min = (Msg2RxBuf[31] - '0') * 10 + (Msg2RxBuf[32] - '0');
+        second = (Msg2RxBuf[34] - '0') * 10 + (Msg2RxBuf[35] - '0');
+        i = sprintf((char *)Msg1TxBuf, "time = %2d:%2d:%2d\r\n", hour, min, second);
+        TIMEP=standard_to_stamp( year, mon, day, hour, min, second)+ 28800 ;
+        USART1SendString(Msg1TxBuf, i);
+        return 0; //success
+    }
+}
+//
+void connect(char* m_sn,char* ip,int port,char *rssi)
+{
+    AT_CGSN(m_sn);
+    AT_CIMI();
+    *rssi=AT_CSQ();
+    AT_QICSGP();
+    AT_QIACT();
+    AT_QIOPEN(port,ip);
+}
+
+
+
+unsigned char FtpLogin(char* cIp, unsigned short int usPort, char* cUser, char* cPass)
+{
+    //char cTemp[50];
+    char cLen;
+    //char cResult[50];
+    //string sStr = "";
+    char cI,cPos = 0;
+    int i=0;
+
+    //tcflush(iFd, TCIOFLUSH);
+    //write(iFd, "AT+QICSGP=1\r\n", 13);
+    //i=sprintf(cTemp, "AT+QICSGP=1\r\n", );
+    USART2SendString("AT+QICSGP=1\r\n",13);
+//    usleep(300000);
+    delay_ms(300);
+    //tcflush(iFd, TCIOFLUSH);
+    //cNwrite = write(iFd, "AT+QIACT=1\r\n", 12);
+//    if (cNwrite == 12)
+//    {
+    //memset(cTemp, 0, 50);
+
+    Msg2RxCount=0;
+    delay_ms(5000);
+    delay_ms(5000);
+    //cNread = read(iFd, cTemp, 50);
+    if (Msg2RxCount > 0)
+    {
+        //printf("\r\n%d,%s", cNread, cTemp);
+        // string sStr = cTemp;
+        cPos = FindString((char*)Msg2RxBuf,Msg2RxCount,"OK",2);
+        if((cPos < 0)||(cPos > 50))
+        {
+//                printf("\r\nQIACT error");
+//                tcflush(iFd, TCIOFLUSH);
+//                write("AT+QIDEACT=1\r\n", 14);
+//                sleep(5);
+//                system("reboot");
+//                sleep(10);
+        }
+
+    }
+    else
+        delay_ms(111);
+    //printf("\r\nQIACT error");
+    //  }
+    // tcflush(iFd, TCIOFLUSH);
+    //  cNwrite = write(iFd, "AT+QIACT?\r\n", 11);
+    AT_QIACT();  //还未判断是否正确应答
+
+    //tcflush(iFd, TCIOFLUSH);
+    // write(iFd, "AT+QFTPCFG=\"contextid\",1\r\n", 26);
+    //  i=sprintf(cTemp, "AT+QFTPCFG=\"contextid\",1\r\n",26 );
+    USART2SendString("AT+QFTPCFG=\"contextid\",1\r\n",26);
+    delay_ms(300);
+    memset(Msg2TxBuf, 0, 50);
+    cLen=sprintf(Msg2TxBuf, "AT+QFTPCFG=\"account\",\"%s\",\"%s\"\r\n", cUser, cPass);
+
+    //cLen = strlen(cResult);
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString((unsigned char*)Msg2TxBuf, cLen);
+    delay_ms(300);
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString((unsigned char*) "AT+QFTPCFG=\"filetype\",0\r\n", 25);
+    delay_ms(300);
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString( "AT+QFTPCFG=\"transmode\",1\r\n", 26);
+    delay_ms(300);
+    // tcflush(iFd, TCIOFLUSH);
+    USART2SendString( "AT+QFTPCFG=\"rsptimeout\",60\r\n", 28);
+    delay_ms(300);
+    memset(Msg2TxBuf, 0, 50);
+    cLen=sprintf(Msg2TxBuf, "AT+QFTPOPEN=\"%s\",%d\r\n", cIp, usPort);
+    //cLen = strlen(cResult);
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString( Msg2TxBuf, cLen);
+//    if (cNwrite == cLen)
+//    {
+    //memset(cTemp, 0, 50);
+    Msg2RxCount=0;
+    delay_ms(5000);
+    delay_ms(5000);
+    //cNread = read(iFd, cTemp, 50);
+    if (Msg2RxCount > 0)
+    {
+        // printf("\r\n%d,%s", cNread , cTemp);
+        // string sStr = cTemp;
+        cPos = FindString((char*)Msg2RxBuf,Msg2RxCount,"+QFTPOPEN: 0,0",14);
+        if((cPos > 0)&&(cPos < 50))
+        {
+            USART1SendString("\r\n**** Connect ftp ok",21);
+            return 1;
+        }
+        else
+            USART1SendString("\r\n#### Connect ftp err",22);
+    }
+    // }
+    /* printf("\r\nQFTPOPEN error");
+     tcflush(iFd, TCIOFLUSH);
+     write(iFd, "AT+QFTPCLOSE\r\n", 14);
+     usleep(300000);
+     tcflush(iFd, TCIOFLUSH);
+     write(iFd, "AT+QIDEACT=1\r\n", 14);
+     sleep(5);
+     system("reboot");
+     sleep(10);
+         */
+    return 0;
+}
+void iap_write_appbin(unsigned int appxaddr,unsigned char *appbuf,unsigned int appsize)
+{
+    unsigned int t;
+    unsigned  short int i=0;
+    unsigned int temp;
+    unsigned int fwaddr=appxaddr;//当前写入的地址
+    unsigned char *dfu=appbuf;
+    unsigned int iapbuf[25];
+    for(t=0; t<appsize; t+=4)
+    {
+        temp=(unsigned int)dfu[3]<<24;
+        temp|=(unsigned int)dfu[2]<<16;
+        temp|=(unsigned int)dfu[1]<<8;
+        temp|=(unsigned int)dfu[0];
+        dfu+=4;//偏移4个字节
+        iapbuf[i++]=temp;
+
+        if(i==25)
+        {
+            i=0;
+            STMFLASH_Write(fwaddr,iapbuf,25);
+            //fwaddr+=2048;//偏移2048  512*4=2048
+        }
+    }
+//	if(i)STMFLASH_Write(fwaddr,iapbuf,i);//将最后的一些内容字节写进去.
+}
+unsigned char FtpDownload( char* cDirectory, char* cFilename)
+{
+    //  char cTemp[50];
+    char cLen;
+    //char cResult[125],cRead[100];
+    char cI,cPos = 0;
+    char file_h[5];
+    int iFilelen,iFilehandle;
+    char remainder;
+    unsigned short int quotient;
+    unsigned  int flash_offset=0;
+    char* end;
+    char X;
+    memset(Msg2TxBuf, 0, 50);
+    cLen=sprintf(Msg2TxBuf, "AT+QFTPCWD=\"%s\"\r\n", cDirectory);
+    USART2SendString(Msg2TxBuf,cLen);
+    //cLen = strlen(cTemp);
+    //tcflush(iFd, TCIOFLUSH);
+    //cNwrite = write(iFd, cTemp, cLen);
+    // usleep(300000);
+    delay_ms(300);
+    // tcflush(iFd, TCIOFLUSH);
+    USART2SendString("AT+QFTPPWD\r\n", 12);
+//    if (cNwrite == 12)
+//    {
+    Msg2RxCount=0;
+    memset(Msg2TxBuf, 0, 50);
+
+    delay_ms(300);
+    //cNread = read(iFd, cTemp, 50);
+    if (Msg2RxCount > 0)
+        //printf("\r\n%d,%s", cNread , cTemp);
+        USART1SendString(Msg2RxBuf,Msg2RxCount);
+    else
+        //printf("\r\nQFTPPWD error");
+        USART1SendString("\r\nQFTPPWD err",13);
+    // }
+    memset(Msg2TxBuf, 0, 50);
+    cLen=sprintf(Msg2TxBuf, "AT+QFTPGET=\"%s\",\"RAM:update.jec\",0\r\n", cFilename);
+    //cLen = strlen(cTemp);
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString( Msg2TxBuf, cLen);
+//    if (cNwrite == cLen)
+//  {
+    Msg2RxCount=0;
+    memset(Msg2TxBuf, 0, 50);
+    delay_ms(5000);
+    //cNread = read(iFd, cTemp, 50);
+    if (Msg2RxCount > 0)
+    {
+        USART1SendString(Msg2RxBuf,Msg2RxCount);
+        //string sStr = cTemp;
+        cPos =FindString(Msg2RxBuf,Msg2RxCount,"+QFTPGET: 0,",12);
+        if((cPos > 0)&&(cPos < 50))
+        {
+            //文件长度信息获取
+            file_h[0]=Msg2RxBuf[cPos+12];
+            file_h[1]=Msg2RxBuf[cPos+13];
+            file_h[2]=Msg2RxBuf[cPos+14];
+            file_h[3]=Msg2RxBuf[cPos+15];
+            file_h[4]=Msg2RxBuf[cPos+16];
+            iFilelen=atoi(file_h);
+            // string sStrRest(sStr, cPos+12, cNread-cPos-14);
+            // iFilelen = static_cast<int32_t>(strtol(sStrRest.c_str(),&end,10));//file length
+            //printf("\r\niFilelen = %d", iFilelen);
+        }
+        else
+        {
+            USART1SendString("\r\nQFTPGET err",13);
+            // printf("\r\nQFTPGET error");
+            return 0;
+        }
+    }
+    else
+    {
+        USART1SendString("\r\nQFTPGET err",13);
+        // printf("\r\nQFTPGET error");
+        return 0;
+    }
+    //}
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString( "AT+QFLST=\"RAM:*\"\r\n", 18);
+    //  if (cNwrite == 18)
+    // {
+    Msg2RxCount=0;
+    memset(Msg2TxBuf, 0, 50);
+    //usleep(300000);
+    delay_ms(300);
+    // cNread = read(iFd, cTemp, 50);
+    if (Msg2RxCount > 0)
+        USART1SendString(Msg2RxBuf,Msg2RxCount);
+    // printf("\r\n%d,%s", cNread , cTemp);
+    else
+        USART1SendString("\r\nQFLST err",11);
+    //printf("\r\nQFLST error");
+    //}
+    // tcflush(iFd, TCIOFLUSH);
+    //cNwrite = write(iFd, "AT+QFOPEN=\"RAM:update.jec\",2\r\n", 30);
+    USART2SendString("AT+QFOPEN=\"RAM:update.jec\",2\r\n", 30);
+//    if (cNwrite == 30)
+//    {
+    Msg2RxCount=0;
+    memset(Msg2TxBuf, 0, 50);
+    delay_ms(300);
+    //cNread = read(iFd, cTemp, 50);
+    if (Msg2RxCount > 0)
+    {
+        // printf("\r\n%d,%s", cNread , cTemp);
+        //string sStr = cTemp;
+        cPos = FindString(Msg2RxBuf,Msg2RxCount,"+QFOPEN:",8);
+        if((cPos > 0)&&(cPos < 50))
+        {
+
+            //文件头
+            //  string sStrRest(sStr, cPos+9, 4);
+            //iFilehandle = static_cast<int32_t>(strtol(sStrRest.c_str(),&end,10));//file handle
+        }
+        else
+        {
+            //printf("\r\nQFOPEN error");
+            return 0;
+        }
+    }
+    else
+    {
+        // printf("\r\nQFOPEN error");
+        return 0;
+    }
+    // }
+    remainder = iFilelen % 100;
+    quotient = iFilelen / 100;
+    //int32_t ifile = open("/home/root/update.jec", O_CREAT|O_RDWR|O_APPEND, S_IRWXU);
+    memset(Msg2TxBuf, 0, 50);
+    cLen=sprintf(Msg2TxBuf, "AT+QFREAD=%d,100\r\n", iFilehandle);
+    //cLen = strlen(cTemp);
+#if CURRENT_ADDR == 1
+    flash_offset= APP2_ADDR;
+#else
+    flash_offset= APP1_ADDR;
+#endif
+
+    do
+    {
+        //tcflush(iFd, TCIOFLUSH);
+        // cNwrite = write(iFd, cTemp, cLen);
+        USART2SendString(Msg2TxBuf,cLen);
+//        if (cNwrite == cLen)
+//        {
+//    	    memset(cResult, 0, 125);
+        // usleep(100000);
+        Msg2RxCount=0;
+        delay_ms(300);
+        //cNread = read(iFd, cResult, 125);
+        if (Msg2RxCount == 121)
+        {
+            //  STMFLASH_Write(flash_offset,Msg2RxBuf+15,100);
+            iap_write_appbin(flash_offset,Msg2RxBuf+15,100);
+            flash_offset+=0x00000064;
+            //Msg2RxBuf+15   100  save
+        }
+        else
+        {
+
+            return 0;
+        }
+        // }
+        quotient--;
+    } while (quotient > 0);
+    if (remainder > 0)
+    {
+        memset(Msg2TxBuf, 0, 50);
+        cLen=sprintf(Msg2TxBuf, "AT+QFREAD=%d,%d\r\n", iFilehandle, remainder);
+        //  cLen = strlen(cTemp);
+        //tcflush(iFd, TCIOFLUSH);
+        // cNwrite = write(iFd, cTemp, cLen);
+        USART2SendString(Msg2TxBuf,cLen);
+//        if (cNwrite == cLen)
+//        {
+        Msg2RxCount=0;
+        //  memset(cResult, 0, 125);
+        delay_ms(100);
+        //cNread = read(iFd, cResult, 125);
+        if (Msg2RxCount > 0)
+        {
+            X = Msg2RxCount - remainder - 6;
+            //  memcpy(cRead, cResult + X, remainder);
+
+
+//Msg2  + X         remainder save
+            //write(ifile, cRead, remainder);
+            iap_write_appbin(flash_offset,Msg2RxBuf+X,remainder);
+        }
+        else
+        {
+            // printf("\r\nQFREAD error");
+            //   close(ifile);
+            return 0;
+        }
+        // }
+    }
+    // close(ifile);
+    cLen= sprintf(Msg2TxBuf, "AT+QFCLOSE=%d\r\n", iFilehandle);
+    // cLen = strlen(cTemp);
+    //tcflush(iFd, TCIOFLUSH);
+    //cNwrite = write(iFd, cTemp, cLen);
+    USART2SendString(Msg2TxBuf,cLen);
+//    if (cNwrite == cLen)
+//    {
+    Msg2RxCount=0;
+    memset(Msg2TxBuf, 0, 50);
+    delay_ms(300);
+    // cNread = read(iFd, cTemp, 50);
+    // if (Msg2RxCount > 0)
+    //USART2SendString
+    //printf("\r\n%d,%s", cNread , cTemp);
+    //else
+    //printf("\r\nQFCLOSE error");
+    //  }
+    return 1;
+}
+
+void FtpLogout(void)
+{
+    char cTemp[50];
+//    char cNwrite,cNread;
+
+    // tcflush(iFd, TCIOFLUSH);
+    USART2SendString("AT+QFTPCLOSE\r\n", 14);
+    // cNwrite = write(iFd, "AT+QFTPCLOSE\r\n", 14);
+//    if (cNwrite == 14)
+//    {
+    Msg2RxCount=0;
+    memset(cTemp, 0, 50);
+    delay_ms(300);
+    //  cNread = read(iFd, cTemp, 50);
+    // if (Msg2RxCount > 0)
+//            printf("\r\n%d,%s", cNread , cTemp);
+//        else
+//            printf("\r\nQFTPCLOSE error");
+    // }
+    //tcflush(iFd, TCIOFLUSH);
+    USART2SendString("AT+QIDEACT=1\r\n", 14);
+    // cNwrite = write(iFd, "AT+QIDEACT=1\r\n", 14);
+    //if (cNwrite == 14)
+    // {
+    Msg2RxCount=0;
+    memset(cTemp, 0, 50);
+    delay_ms(5000);
+    // cNread = read(iFd, cTemp, 50);
+//        if (Msg2RxCount > 0)
+//            printf("\r\n%d,%s", cNread , cTemp);
+//        else
+//            printf("\r\nQIDEACT error");
+    // }
+}
+
+
